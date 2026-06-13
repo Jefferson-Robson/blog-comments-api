@@ -1,0 +1,227 @@
+<div id="blog-comments-widget">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    .bcw-container {
+      max-width: 720px;
+      margin: 2rem auto;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      color: #1e293b;
+    }
+    .bcw-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+    .bcw-subtitle {
+      font-size: 0.875rem;
+      color: #64748b;
+      margin-bottom: 1.5rem;
+    }
+    .bcw-form { display: flex; flex-direction: column; gap: 0.75rem; }
+    .bcw-row { display: flex; gap: 0.75rem; }
+    .bcw-row input { flex: 1; }
+    .bcw-input {
+      padding: 0.625rem 0.875rem;
+      border: 1px solid #cbd5e1;
+      border-radius: 0.5rem;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border 0.2s;
+    }
+    .bcw-input:focus { border-color: #f97316; }
+    .bcw-textarea {
+      padding: 0.625rem 0.875rem;
+      border: 1px solid #cbd5e1;
+      border-radius: 0.5rem;
+      font-size: 0.9rem;
+      resize: vertical;
+      min-height: 80px;
+      outline: none;
+      transition: border 0.2s;
+      font-family: inherit;
+    }
+    .bcw-textarea:focus { border-color: #f97316; }
+    .bcw-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.625rem 1.25rem;
+      background: #f97316;
+      color: #fff;
+      border: none;
+      border-radius: 0.5rem;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+      align-self: flex-start;
+    }
+    .bcw-btn:hover { background: #ea580c; }
+    .bcw-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .bcw-error {
+      color: #dc2626;
+      font-size: 0.85rem;
+      margin-top: 0.25rem;
+    }
+    .bcw-list { margin-top: 2rem; }
+    .bcw-empty {
+      text-align: center;
+      color: #94a3b8;
+      font-size: 0.9rem;
+      padding: 2rem 0;
+    }
+    .bcw-card {
+      padding: 1rem;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .bcw-card:last-child { border-bottom: none; }
+    .bcw-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.35rem;
+    }
+    .bcw-card-author {
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+    .bcw-card-date {
+      font-size: 0.8rem;
+      color: #94a3b8;
+    }
+    .bcw-card-text {
+      font-size: 0.9rem;
+      line-height: 1.5;
+      color: #334155;
+    }
+    @media (max-width: 480px) {
+      .bcw-row { flex-direction: column; }
+    }
+  </style>
+
+  <div class="bcw-container" id="bcw-root">
+    <h3 class="bcw-title"><i class="fa-solid fa-comments" style="color:#f97316"></i> Comentários</h3>
+    <p class="bcw-subtitle">Deixe seu comentário — sua participação enriquece o conteúdo e ajuda outros leitores.</p>
+
+    <form class="bcw-form" id="bcw-form">
+      <div class="bcw-row">
+        <input class="bcw-input" id="bcw-autor" placeholder="Seu nome *" required>
+        <input class="bcw-input" id="bcw-email" type="email" placeholder="Email (opcional)">
+      </div>
+      <textarea class="bcw-textarea" id="bcw-texto" placeholder="Escreva seu comentário..." required></textarea>
+      <div id="bcw-feedback" class="bcw-error"></div>
+      <button class="bcw-btn" type="submit" id="bcw-submit">
+        <span>Enviar comentário</span>
+        <i class="fa-solid fa-paper-plane" style="font-size:0.75rem"></i>
+      </button>
+    </form>
+
+    <div class="bcw-list" id="bcw-list">
+      <p class="bcw-empty">Carregando comentários...</p>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      const POST_SLUG = document.currentScript?.getAttribute('data-post-slug') || '{{post_slug}}';
+      const API_BASE = document.currentScript?.getAttribute('data-api-base') || '{{api_base}}';
+
+      const autorEl = document.getElementById('bcw-autor');
+      const emailEl = document.getElementById('bcw-email');
+      const textoEl = document.getElementById('bcw-texto');
+      const formEl = document.getElementById('bcw-form');
+      const listEl = document.getElementById('bcw-list');
+      const feedbackEl = document.getElementById('bcw-feedback');
+      const submitBtn = document.getElementById('bcw-submit');
+
+      // Máscara para evitar spam
+      let lastSubmit = 0;
+
+      // Carregar comentários
+      function carregar() {
+        listEl.innerHTML = '<p class="bcw-empty">Carregando comentários...</p>';
+        fetch(API_BASE + '/api/comentarios/' + encodeURIComponent(POST_SLUG))
+          .then(function(r) { return r.json(); })
+          .then(function(comentarios) {
+            if (comentarios.length === 0) {
+              listEl.innerHTML = '<p class="bcw-empty">Nenhum comentário ainda. Seja o primeiro!</p>';
+              return;
+            }
+            listEl.innerHTML = comentarios.map(function(c) {
+              return (
+                '<div class="bcw-card">' +
+                '<div class="bcw-card-header">' +
+                '<span class="bcw-card-author"><i class="fa-solid fa-user" style="color:#f97316;font-size:0.8rem"></i> ' + escapeHtml(c.autor) + '</span>' +
+                '<span class="bcw-card-date">' + c.data_criacao + '</span>' +
+                '</div>' +
+                '<div class="bcw-card-text">' + escapeHtml(c.texto) + '</div>' +
+                '</div>'
+              );
+            }).join('');
+          })
+          .catch(function() {
+            listEl.innerHTML = '<p class="bcw-empty">Erro ao carregar comentários.</p>';
+          });
+      }
+
+      function escapeHtml(str) {
+        var div = document.createElement('div');
+        div.appendChild(document.createTextNode(str));
+        return div.innerHTML;
+      }
+
+      // Enviar comentário
+      formEl.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var now = Date.now();
+        if (now - lastSubmit < 5000) {
+          feedbackEl.textContent = 'Aguarde alguns segundos antes de enviar outro comentário.';
+          return;
+        }
+
+        var autor = autorEl.value.trim();
+        var email = emailEl.value.trim();
+        var texto = textoEl.value.trim();
+
+        if (!autor || !texto) {
+          feedbackEl.textContent = 'Preencha nome e comentário.';
+          return;
+        }
+
+        feedbackEl.textContent = '';
+        submitBtn.disabled = true;
+        submitBtn.querySelector('span').textContent = 'Enviando...';
+
+        fetch(API_BASE + '/api/comentarios/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            post_slug: POST_SLUG,
+            autor: autor,
+            email: email || null,
+            texto: texto
+          })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function() {
+          lastSubmit = now;
+          autorEl.value = '';
+          emailEl.value = '';
+          textoEl.value = '';
+          feedbackEl.textContent = '';
+          carregar();
+        })
+        .catch(function() {
+          feedbackEl.textContent = 'Erro ao enviar. Tente novamente.';
+        })
+        .finally(function() {
+          submitBtn.disabled = false;
+          submitBtn.querySelector('span').textContent = 'Enviar comentário';
+        });
+      });
+
+      // Iniciar
+      carregar();
+    })();
+  </script>
+</div>
